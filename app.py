@@ -583,81 +583,16 @@ def question_answering():
         local_qa_available = False
         QuestionAnswerer = None
     
-    # If neither is available, show setup instructions
+    # If neither is available, show simple message
     if not groq_available and not local_qa_available:
-        st.error("❌ Question Answering Not Available")
-        st.markdown("""
-        <div class="warning-box">
-            <h4>⚠️ llama-cpp-python is not installed</h4>
-            <p>Question answering requires the optional <code>llama-cpp-python</code> package.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### 📦 Installation Instructions (Windows)")
-        
+        st.warning("⚠️ Question Answering is not available")
         st.info("""
-        💡 **Note**: Question Answering is **OPTIONAL**. 
-        All other features (processing, classification, extraction, search) work perfectly without it!
+        Question Answering requires either:
+        - GROQ API key (set in `.env` file), or
+        - Local LLM setup (optional feature)
+        
+        **Note**: This is an optional feature. All other features work without it!
         """)
-        
-        st.markdown("#### Option 1: Try Standard Installation")
-        st.code("""
-# First, update pip
-python.exe -m pip install --upgrade pip
-
-# Then try standard install (may have wheels for your Python version)
-pip install llama-cpp-python
-        """, language="bash")
-        
-        st.markdown("#### Option 2: Use Conda (Easiest if you have it)")
-        st.code("""
-conda install -c conda-forge llama-cpp-python
-        """, language="bash")
-        
-        st.markdown("#### Option 3: Install Build Tools (If above fail)")
-        st.markdown("""
-        If standard installation fails, you'll need Visual Studio Build Tools:
-        
-        1. Download: https://visualstudio.microsoft.com/downloads/
-        2. Install "Desktop development with C++" workload
-        3. Then run: `pip install llama-cpp-python`
-        """)
-        
-        st.markdown("---")
-        st.success("""
-        ✅ **Good News**: You don't need QA to use the dashboard!
-        - ✅ Process documents
-        - ✅ Classify documents  
-        - ✅ Extract information
-        - ✅ Search documents
-        - ❌ Question answering (optional feature)
-        """)
-        
-        st.markdown("---")
-        st.markdown("### 📥 Download a GGUF Model")
-        st.info("""
-        After installing llama-cpp-python, you'll need to download a GGUF model file:
-        
-        1. **Recommended**: Mistral 7B Instruct
-           - Download from: [HuggingFace - TheBloke](https://huggingface.co/TheBloke)
-           - Model: `mistral-7b-instruct-v0.2.Q4_K_M.gguf`
-           - Size: ~4GB
-        
-        2. **Alternative**: LLaMA 2 7B Chat
-           - Model: `llama-2-7b-chat.Q4_K_M.gguf`
-        
-        3. Place the model file in `./models/` directory or specify the path when using QA.
-        """)
-        
-        st.markdown("---")
-        st.markdown("### ✅ After Installation")
-        st.success("""
-        Once installed, refresh this page and you'll be able to:
-        - Ask questions about your documents
-        - Get AI-powered answers using local LLM
-        - No internet connection required!
-        """)
-        
         return
     
     # Check if index exists
@@ -731,13 +666,26 @@ conda install -c conda-forge llama-cpp-python
                     st.warning("No relevant documents found for your question.")
                     return
                 
-                # Get full text for documents
+                # Get full text for documents (ensure we have actual document content)
                 for doc in retrieved_docs:
                     doc_id = doc.get("document_id")
                     if doc_id:
+                        # Try to get full text from vector store
                         full_text = vector_store.get_text(doc_id)
                         if full_text:
                             doc["text"] = full_text
+                        # If no full text, ensure snippet is available
+                        elif not doc.get("text") and not doc.get("snippet"):
+                            # Try to get from output.json as fallback
+                            output_path = config.output_dir / "output.json"
+                            if output_path.exists():
+                                import json
+                                with open(output_path, 'r', encoding='utf-8') as f:
+                                    output_data = json.load(f)
+                                    for item in output_data:
+                                        if item.get("document_id") == doc_id:
+                                            doc["text"] = item.get("text", "")
+                                            break
                 
                 # Use GROQ if available, otherwise fallback to local LLM
                 if groq_available:

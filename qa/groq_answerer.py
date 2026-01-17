@@ -22,13 +22,14 @@ if GROQ_AVAILABLE:
     load_dotenv()
 
 
-# Best GROQ models (ordered by quality)
+# Currently supported GROQ models (as of 2025)
+# Note: mixtral-8x7b-32768 has been decommissioned
 GROQ_MODELS = [
-    "mixtral-8x7b-32768",      # Best overall - Mixtral 8x7B (32K context)
-    "llama-3-70b-8192",        # Best for complex tasks - Llama 3 70B
-    "llama-3-8b-8192",         # Fast and efficient - Llama 3 8B
-    "llama-3.1-70b-versatile", # Latest Llama 3.1 70B
-    "llama-3.1-8b-instant",    # Fast Llama 3.1 8B
+    "llama-3.1-70b-versatile",  # Best overall - Llama 3.1 70B (128K context)
+    "llama-3.1-8b-instant",      # Fast and efficient - Llama 3.1 8B
+    "llama-3-70b-8192",          # Llama 3 70B (8K context)
+    "llama-3-8b-8192",           # Llama 3 8B (8K context)
+    "gemma-7b-it",               # Gemma 7B Instruct
 ]
 
 
@@ -136,20 +137,21 @@ class GroqQuestionAnswerer:
             List of message dictionaries
         """
         system_message = """You are a helpful assistant that answers questions based on the provided context documents.
-        
+
 Your task:
-- Answer questions clearly and concisely
-- Base your answer ONLY on the information in the context documents
-- If the answer cannot be found in the context, say so explicitly
+- Answer questions clearly and concisely using ONLY the information from the context documents
+- Extract specific facts, dates, amounts, names, and details from the documents
+- If the question asks to find documents, list the specific documents that match
+- If the answer cannot be found in the context, say "I could not find this information in the provided documents"
 - Do not make up information or use knowledge outside the provided context
-- Cite which document(s) you used when relevant"""
+- Be specific and cite document numbers when relevant"""
         
         user_message = f"""Context Documents:
 {context}
 
 Question: {question}
 
-Please provide a clear and concise answer based only on the information in the context documents above."""
+Answer the question using ONLY the information from the context documents above. Be specific and cite which documents contain the relevant information."""
         
         return [
             {"role": "system", "content": system_message},
@@ -230,13 +232,51 @@ Please provide a clear and concise answer based only on the information in the c
             }
             
         except Exception as e:
+            error_str = str(e)
+            # Check if model is decommissioned
+            if "decommissioned" in error_str.lower() or "model_decommissioned" in error_str:
+                # Try fallback to a supported model
+                fallback_models = [m for m in GROQ_MODELS if m != self.model]
+                if fallback_models:
+                    self.model = fallback_models[0]  # Use first available fallback
+                    try:
+                        response = self.client.chat.completions.create(
+                            model=self.model,
+                            messages=messages,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            top_p=top_p,
+                            stream=False
+                        )
+                        answer_text = response.choices[0].message.content.strip()
+                        usage = response.usage
+                        return {
+                            "answer": answer_text,
+                            "context_used": len([doc for doc in retrieved_docs if doc.get("text") or doc.get("snippet")]),
+                            "model": self.model,
+                            "tokens_generated": usage.completion_tokens if usage else 0,
+                            "tokens_prompt": usage.prompt_tokens if usage else 0,
+                            "tokens_total": usage.total_tokens if usage else 0,
+                            "provider": "groq",
+                            "note": f"Used fallback model (original model was decommissioned)"
+                        }
+                    except Exception as e2:
+                        return {
+                            "answer": f"Error: The selected model is not available. Please try a different model. Error: {str(e2)}",
+                            "context_used": 0,
+                            "model": self.model,
+                            "tokens_generated": 0,
+                            "provider": "groq",
+                            "error": str(e2)
+                        }
+            
             return {
-                "answer": f"Error generating answer: {str(e)}",
+                "answer": f"Error generating answer: {error_str}",
                 "context_used": 0,
                 "model": self.model,
                 "tokens_generated": 0,
                 "provider": "groq",
-                "error": str(e)
+                "error": error_str
             }
     
     def is_available(self) -> bool:

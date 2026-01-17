@@ -820,7 +820,7 @@
     "text": "Invoice #1003\nDate: 2025-06-24\nCompany: GlobalTech\nTotal Amount: $4806.00\nThank you for your business!\n",
     "classification": {
       "class": "Invoice",
-      "confidence": 0.4844837188720703
+      "confidence": 0.5777777777777777
     },
     "extracted_data": {
       "invoice_number": "1003",
@@ -1227,7 +1227,7 @@
     "text": "Invoice #1004\nDate: 2025-03-26\nCompany: Acme Corp\nTotal Amount: $1955.00\nThank you for your business!\n",
     "classification": {
       "class": "Invoice",
-      "confidence": 0.48207059502601624
+      "confidence": 0.5777777777777777
     },
     "extracted_data": {
       "invoice_number": "1004",
@@ -3246,10 +3246,15 @@
     "file_name": "resume_1.pdf",
     "text": "John Doe\nEmail: john.doe@example.com\nPhone: +1-555-799-6125\nExperience: 5 years\nSummary: Experienced professional skilled in AI and software engineering.\n",
     "classification": {
-      "class": "Unclassifiable",
-      "confidence": 0.19376221299171448
+      "class": "Resume",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "(555) 799-6125",
+      "experience_years": 5
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
@@ -3648,10 +3653,15 @@
     "file_name": "resume_2.pdf",
     "text": "Jane Smith\nEmail: jane.smith@example.com\nPhone: +1-555-486-5877\nExperience: 1 years\nSummary: Experienced professional skilled in AI and software engineering.\n",
     "classification": {
-      "class": "Unclassifiable",
-      "confidence": 0.10382348299026489
+      "class": "Resume",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "name": "Jane Smith",
+      "email": "jane.smith@example.com",
+      "phone": "(555) 486-5877",
+      "experience_years": 1
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
@@ -4050,10 +4060,15 @@
     "file_name": "resume_3.pdf",
     "text": "Ali Khan\nEmail: ali.khan@example.com\nPhone: +1-555-980-6266\nExperience: 4 years\nSummary: Experienced professional skilled in AI and software engineering.\n",
     "classification": {
-      "class": "Unclassifiable",
-      "confidence": 0.10884426534175873
+      "class": "Resume",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "name": "Ali Khan",
+      "email": "ali.khan@example.com",
+      "phone": "(555) 980-6266",
+      "experience_years": 4
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
@@ -4452,10 +4467,15 @@
     "file_name": "resume_4.pdf",
     "text": "Maria Garcia\nEmail: maria.garcia@example.com\nPhone: +1-555-233-1405\nExperience: 1 years\nSummary: Experienced professional skilled in AI and software engineering.\n",
     "classification": {
-      "class": "Unclassifiable",
-      "confidence": 0.1338173896074295
+      "class": "Resume",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "name": "Maria Garcia",
+      "email": "maria.garcia@example.com",
+      "phone": "(555) 233-1405",
+      "experience_years": 1
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
@@ -4854,10 +4874,15 @@
     "file_name": "resume_5.pdf",
     "text": "David Lee\nEmail: david.lee@example.com\nPhone: +1-555-305-2284\nExperience: 2 years\nSummary: Experienced professional skilled in AI and software engineering.\n",
     "classification": {
-      "class": "Unclassifiable",
-      "confidence": 0.14573226869106293
+      "class": "Resume",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "name": "David Lee",
+      "email": "david.lee@example.com",
+      "phone": "(555) 305-2284",
+      "experience_years": 2
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
@@ -6906,14 +6931,14 @@
     "file_name": "utilitybill_5.pdf",
     "text": "Account Number: ACC-41029\nBilling Date: 2025-06-11\nUsage: 871 kWh\nAmount Due: $127.00\nUtility Provider: PowerGrid Co\n",
     "classification": {
-      "class": "Utility Bill",
-      "confidence": 0.4357646405696869
+      "class": "Invoice",
+      "confidence": 0.7
     },
     "extracted_data": {
-      "account_number": "ACC-41029",
+      "invoice_number": null,
       "date": null,
-      "usage_kwh": 871.0,
-      "amount_due": 127.0
+      "company": null,
+      "total_amount": 127.0
     },
     "embedding": {
       "dimension": 384,
@@ -7313,10 +7338,15 @@
     "file_name": "Test Task - AI Engineer.docx",
     "text": "AI Engineer — Technical Assessment\nObjective\nThis assessment evaluates your ability to design and implement local AI workflows that involve document understanding, classification, data extraction, and retrieval using open-source tools only.\nImportant: No hosted or paid AI services (e.g., OpenAI, Claude, Gemini) are allowed.\n A simple CLI or API interface is sufficient, UI is optional.\nTask Description\nYou are required to build a local AI system that can:\nIngest & Process Documents\nRead all PDF or text files from a provided folder (10–15 documents).\nExtract and clean their text content.\nClassify Each Document\n Classify every file into one of the following categories:\nInvoice\nResume\nUtility Bill\nOther\nUnclassifiable\nExtract Structured Data\nImplement a Simple Retrieval System\n Build a local semantic search component using open-source embeddings (for example, SentenceTransformers or Hugging Face Transformers).\n It should allow the user to search documents by meaning, e.g.:\n“Find all documents mentioning payments due in January.”\n(Optional Bonus)\n Demonstrate how this retrieval could extend into a local question-answering workflow using an open-source LLM (e.g., Mistral, LLaMA, Falcon).\n This part is optional and not required for a passing score.\nDeliverables\nSolution Code : well-structured and documented.\nOutput.json:  containing classifications and extracted fields.\n Example:\n{\n  \"invoice_1.pdf\": {\n    \"class\": \"Invoice\",\n    \"invoice_number\": \"INV-1234\",\n    \"date\": \"2025-01-01\",\n    \"company\": \"ACME Ltd.\",\n    \"total_amount\": 350.5\n  },\n  \"resume_1.pdf\": {\n    \"class\": \"Resume\",\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"123-456-7890\",\n    \"experience_years\": 5\n  }\n}\n3.README.md explaining:\nHow to install dependencies\nHow to run the program locally\nWhat libraries and methods were used\n Technical Rules\nAllowed — Open-source libraries (PyTorch, Transformers, SentenceTransformers, FAISS, scikit-learn, pdfminer, PyPDF, etc.)\nNot Allowed — Paid or hosted AI APIs (OpenAI, Claude, Gemini, etc.)\nUI optional (CLI or API output is fine).\nAll processing must run locally.\nDataset\nYou will be provided with a sample dataset of PDF documents (Invoices, Resumes, Utility Bills, and Others).\n Use these files as input for your solution.\nSubmission Instructions\nZip your solution or upload it to GitHub.\nInclude:\nCode folder\noutput.json\nREADME.md\nEnsure it runs offline without internet access.\nDocument Type Fields to Extract\nInvoice invoice_number, date, company, total_amount\nResume name, email, phone, experience_years\nUtility Bill account_number, date, usage_kwh, amount_due\nOther / Unclassifiable No extraction required",
     "classification": {
-      "class": "Other",
-      "confidence": 0.48884305357933044
+      "class": "Invoice",
+      "confidence": 0.7
     },
-    "extracted_data": {},
+    "extracted_data": {
+      "invoice_number": "Resume",
+      "date": null,
+      "company": "Objective",
+      "total_amount": null
+    },
     "embedding": {
       "dimension": 384,
       "vector": [
