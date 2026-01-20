@@ -566,7 +566,17 @@ def question_answering():
     
     config = get_config()
     
-    # Check for GROQ API first (preferred)
+    # Check for Ollama (local)
+    try:
+        from qa.ollama_answerer import OllamaAnswerer, is_ollama_available, get_ollama_models
+        ollama_available = is_ollama_available()
+        ollama_models = get_ollama_models() if ollama_available else []
+    except ImportError:
+        ollama_available = False
+        OllamaAnswerer = None
+        ollama_models = []
+
+    # Check for GROQ API (optional)
     try:
         from qa.groq_answerer import GroqQuestionAnswerer, is_groq_available, get_available_models
         groq_available = is_groq_available()
@@ -584,12 +594,13 @@ def question_answering():
         QuestionAnswerer = None
     
     # If neither is available, show simple message
-    if not groq_available and not local_qa_available:
+    if not ollama_available and not groq_available and not local_qa_available:
         st.warning("⚠️ Question Answering is not available")
         st.info("""
         Question Answering requires either:
-        - GROQ API key (set in `.env` file), or
-        - Local LLM setup (optional feature)
+        - Ollama running locally (recommended), or
+        - GROQ API key (optional), or
+        - Local llama-cpp setup (optional)
         
         **Note**: This is an optional feature. All other features work without it!
         """)
@@ -603,18 +614,22 @@ def question_answering():
         st.warning("⚠️ No documents indexed. Please process documents first.")
         return
     
-    # Show which QA method is available
+    # Provider selection (simple)
+    provider_options = []
+    if ollama_available:
+        provider_options.append("Ollama (Local)")
     if groq_available:
-        st.success("✅ GROQ API is available - Using best model for fast inference")
-        available_models = get_available_models()
-    elif local_qa_available:
-        st.info("ℹ️ Using local LLM (GROQ API not configured)")
-    else:
+        provider_options.append("GROQ (API)")
+    if local_qa_available:
+        provider_options.append("Local GGUF (llama-cpp)")
+
+    if not provider_options:
         st.warning("⚠️ No QA method available")
         return
     
     # QA form
     with st.form("qa_form"):
+        provider_choice = st.selectbox("Provider", options=provider_options, index=0)
         question = st.text_area(
             "❓ Your Question",
             placeholder="Ask a question about your documents...",
@@ -626,19 +641,14 @@ def question_answering():
         with col1:
             top_k = st.slider("Documents to Retrieve", min_value=1, max_value=10, value=3)
         with col2:
-            if groq_available:
-                selected_model = st.selectbox(
-                    "Model",
-                    options=available_models,
-                    index=0,
-                    help="Select GROQ model (best model selected by default)"
-                )
+            if provider_choice.startswith("Ollama"):
+                model_choices = ollama_models if ollama_models else ["llama3.1:8b", "mistral:7b"]
+                selected_ollama_model = st.selectbox("Model", options=model_choices, index=0)
+            elif provider_choice.startswith("GROQ"):
+                available_models = get_available_models()
+                selected_groq_model = st.selectbox("Model", options=available_models, index=0)
             else:
-                model_path = st.text_input(
-                    "Model Path",
-                    value="",
-                    help="Path to GGUF model file (leave empty for default)"
-                )
+                model_path = st.text_input("Model Path", value="", help="Path to GGUF model file")
         with col3:
             max_tokens = st.slider("Max Tokens", min_value=64, max_value=1024, value=512)
         
@@ -687,34 +697,17 @@ def question_answering():
                                             doc["text"] = item.get("text", "")
                                             break
                 
-                # Use GROQ if available, otherwise fallback to local LLM
-                if groq_available:
-                    # Initialize GROQ answerer
-                    answerer = GroqQuestionAnswerer(model=selected_model)
-                    
-                    # Generate answer
-                    result = answerer.answer(
-                        question=question,
-                        retrieved_docs=retrieved_docs,
-                        max_tokens=max_tokens
-                    )
-                elif local_qa_available:
-                    # Initialize local LLM answerer
-                    answerer = QuestionAnswerer(
-                        model_path=model_path if model_path else None,
-                        verbose=False
-                    )
-                    answerer.load_model()
-                    
-                    # Generate answer
-                    result = answerer.answer(
-                        question=question,
-                        retrieved_docs=retrieved_docs,
-                        max_tokens=max_tokens
-                    )
+                # Generate answer using selected provider
+                if provider_choice.startswith("Ollama"):
+                    answerer = OllamaAnswerer(model=selected_ollama_model)
+                    result = answerer.answer(question=question, retrieved_docs=retrieved_docs, max_tokens=max_tokens)
+                elif provider_choice.startswith("GROQ"):
+                    answerer = GroqQuestionAnswerer(model=selected_groq_model)
+                    result = answerer.answer(question=question, retrieved_docs=retrieved_docs, max_tokens=max_tokens)
                 else:
-                    st.error("No QA method available")
-                    return
+                    answerer = QuestionAnswerer(model_path=model_path if model_path else None, verbose=False)
+                    answerer.load_model()
+                    result = answerer.answer(question=question, retrieved_docs=retrieved_docs, max_tokens=max_tokens)
                 
                 # Display answer
                 st.success("✅ Answer generated!")

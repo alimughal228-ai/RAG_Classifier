@@ -182,7 +182,7 @@ def create_parser() -> argparse.ArgumentParser:
     # QA command - question answering (optional)
     qa_parser = subparsers.add_parser(
         "qa",
-        help="Answer questions using local LLM (requires llama-cpp-python and GGUF model)"
+        help="Answer questions using Ollama (local) / GROQ (optional) / llama-cpp (optional)"
     )
     qa_parser.add_argument(
         "--question",
@@ -200,6 +200,25 @@ def create_parser() -> argparse.ArgumentParser:
         "--model-path",
         type=str,
         help="Path to GGUF model file (e.g., mistral-7b-instruct-v0.2.Q4_K_M.gguf)"
+    )
+    qa_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["auto", "ollama", "groq", "local"],
+        default="auto",
+        help="QA provider (default: auto)"
+    )
+    qa_parser.add_argument(
+        "--ollama-model",
+        type=str,
+        default="llama3.1:8b",
+        help="Ollama model name (default: llama3.1:8b)"
+    )
+    qa_parser.add_argument(
+        "--ollama-host",
+        type=str,
+        default="http://localhost:11434",
+        help="Ollama host URL (default: http://localhost:11434)"
     )
     qa_parser.add_argument(
         "--store-path",
@@ -1060,7 +1079,7 @@ def handle_qa(args: argparse.Namespace, config: AppConfig) -> None:
         args: Parsed command arguments
         config: Application configuration
     """
-    # Check for GROQ API first (preferred)
+    # Check for GROQ API (optional)
     try:
         from qa.groq_answerer import GroqQuestionAnswerer, is_groq_available, get_available_models
         groq_available = is_groq_available()
@@ -1069,7 +1088,16 @@ def handle_qa(args: argparse.Namespace, config: AppConfig) -> None:
         GroqQuestionAnswerer = None
         get_available_models = lambda: []
     
-    # Check for local LLM as fallback
+    # Check for Ollama (local)
+    try:
+        from qa.ollama_answerer import OllamaAnswerer, is_ollama_available, get_ollama_models
+        ollama_available = is_ollama_available(host=getattr(args, "ollama_host", "http://localhost:11434"))
+    except ImportError:
+        ollama_available = False
+        OllamaAnswerer = None
+        get_ollama_models = lambda *args, **kwargs: []
+
+    # Check for local LLM (llama-cpp) as fallback
     try:
         from qa.answerer import QuestionAnswerer, is_qa_available
         local_qa_available = is_qa_available()
@@ -1078,16 +1106,20 @@ def handle_qa(args: argparse.Namespace, config: AppConfig) -> None:
         QuestionAnswerer = None
     
     # If neither is available, show setup instructions
-    if not groq_available and not local_qa_available:
+    if not groq_available and not ollama_available and not local_qa_available:
         print("="*60)
         print("Question Answering Not Available")
         print("="*60)
         print("Error: No QA method available.")
         print("\nTo enable question answering:")
-        print("\nOption 1: GROQ API (Recommended)")
+        print("\nOption 1: Ollama (Local - Recommended)")
+        print("  1. Install Ollama")
+        print("  2. Pull a model: ollama pull llama3.1:8b")
+        print("  3. Start server: ollama serve")
+        print("\nOption 2: GROQ API (Optional)")
         print("  1. Install: pip install groq")
         print("  2. Add GROQ_API_KEY to .env file")
-        print("\nOption 2: Local LLM")
+        print("\nOption 3: Local LLM (llama-cpp)")
         print("  1. Install: pip install llama-cpp-python")
         print("  2. Download a GGUF model (e.g., Mistral 7B)")
         print("  3. Specify model path with --model-path")
@@ -1161,8 +1193,23 @@ def handle_qa(args: argparse.Namespace, config: AppConfig) -> None:
             if full_text:
                 doc["text"] = full_text
     
-    # Initialize question answerer
-    if groq_available:
+    # Initialize question answerer (provider selection)
+    provider = (getattr(args, "provider", None) or "auto").lower()
+    if provider not in ["auto", "ollama", "groq", "local"]:
+        provider = "auto"
+
+    if provider in ["auto", "ollama"] and ollama_available:
+        print("Initializing Ollama...", end=" ")
+        try:
+            model = getattr(args, "ollama_model", None) or "llama3.1:8b"
+            host = getattr(args, "ollama_host", None) or "http://localhost:11434"
+            answerer = OllamaAnswerer(model=model, host=host)
+            print(f"✓ (Model: {answerer.model})")
+        except Exception as e:
+            print("❌")
+            print(f"Error initializing Ollama: {e}")
+            return
+    elif provider in ["auto", "groq"] and groq_available:
         print("Initializing GROQ API...", end=" ")
         try:
             answerer = GroqQuestionAnswerer()
@@ -1172,25 +1219,19 @@ def handle_qa(args: argparse.Namespace, config: AppConfig) -> None:
             print(f"Error initializing GROQ: {e}")
             print("\nCheck that GROQ_API_KEY is set in .env file")
             return
-    elif local_qa_available:
-        print("Loading LLM model...", end=" ")
+    elif provider in ["auto", "local"] and local_qa_available:
+        print("Loading local LLM model...", end=" ")
         try:
-            answerer = QuestionAnswerer(
-                model_path=args.model_path,
-                verbose=True
-            )
+            answerer = QuestionAnswerer(model_path=args.model_path, verbose=True)
             answerer.load_model()
             print("✓")
         except Exception as e:
             print("❌")
             print(f"Error loading LLM model: {e}")
-            print("\nTo use question answering:")
-            print("  1. Download a GGUF model (e.g., from HuggingFace)")
-            print("  2. Specify path with --model-path")
-            print("  3. Recommended: mistral-7b-instruct-v0.2.Q4_K_M.gguf")
             return
     else:
-        print("Error: No QA method available")
+        print("Error: Requested QA provider is not available.")
+        print("Try: --provider ollama  (recommended) or --provider groq")
         return
     
     # Generate answer

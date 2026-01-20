@@ -9,7 +9,7 @@ A comprehensive, fully offline document AI system for processing, classifying, e
 - **🔍 Information Extraction**: Extract structured data based on document type
 - **🧠 Vector Embeddings**: Generate embeddings using SentenceTransformers
 - **🔎 Semantic Search**: Fast similarity search using FAISS
-- **❓ Question Answering**: Optional QA using GROQ API or local LLM
+- **❓ Question Answering**: Optional QA using Ollama (local), GROQ API, or local LLM
 - **📊 Dashboard**: Professional Streamlit dashboard for visualization and interaction
 
 ## 🏗️ Architecture
@@ -67,7 +67,24 @@ pip install -r requirements.txt
    GROQ_API_KEY=your_api_key_here
    ```
 
-**Option B: Local LLM (Fully Offline)**
+**Option B: Ollama (Recommended - Fully Offline & Easy)**
+
+1. Install Ollama from [ollama.com](https://ollama.com)
+
+2. Pull a model:
+   ```bash
+   ollama pull llama3.1:8b
+   # Or other models: mistral:7b, qwen2.5:7b
+   ```
+
+3. Start Ollama (usually runs automatically):
+   ```bash
+   ollama serve
+   ```
+
+4. That's it! The system will automatically detect and use Ollama.
+
+**Option C: Local LLM via llama-cpp-python (Fully Offline)**
 
 1. Install llama-cpp-python:
    ```bash
@@ -162,11 +179,17 @@ python cli.py search --query "resume skills" --store-path ./my_index --top-k 10
 #### Question Answering
 
 ```bash
-# Ask questions (uses GROQ if available, otherwise local LLM)
-python cli.py qa --question "What is the total amount on invoice_1?" --top-k 3
+# Using Ollama (recommended - fully offline)
+python cli.py qa --provider ollama --ollama-model llama3.1:8b --question "Find all documents mentioning payments due in January" --top-k 5
 
-# With custom model path (for local LLM)
-python cli.py qa --question "What are the payment terms?" --model-path ./models/mistral.gguf
+# Using GROQ API (fast, requires API key)
+python cli.py qa --provider groq --question "What is the total amount on invoice_1?" --top-k 3
+
+# Using local LLM (GGUF model)
+python cli.py qa --provider local --question "What are the payment terms?" --model-path ./models/mistral.gguf
+
+# Auto-detect provider (tries Ollama first, then GROQ, then local LLM)
+python cli.py qa --question "What is the total amount on invoice_1?" --top-k 3
 ```
 
 ## 📚 Libraries and Methods Used
@@ -192,13 +215,20 @@ python cli.py qa --question "What are the payment terms?" --model-path ./models/
   - Used for: Efficient document retrieval
 
 #### Question Answering (Optional)
+- **Ollama** (Recommended for local QA):
+  - Local LLM server (install from [ollama.com](https://ollama.com))
+  - Models: Llama 3.1, Mistral, Qwen, and more
+  - Used for: Fully offline question answering (easiest setup)
 - **groq** (≥0.4.0): 
   - GROQ API client for fast inference
-  - Models: Mixtral 8x7B, Llama 3 (70B/8B)
-  - Used for: Cloud-based question answering
+  - Models: Llama 3.1 70B, Llama 3 70B/8B
+  - Used for: Cloud-based question answering (fastest)
 - **llama-cpp-python** (optional): 
   - Local LLM inference via LLaMA.cpp
-  - Used for: Fully offline question answering
+  - GGUF model format
+  - Used for: Fully offline question answering (advanced)
+- **requests** (≥2.31.0):
+  - HTTP client for Ollama API communication
 
 #### Dashboard
 - **streamlit** (≥1.28.0): Web dashboard framework
@@ -246,14 +276,21 @@ python cli.py qa --question "What are the payment terms?" --model-path ./models/
 - **Storage**: Local disk-based with metadata persistence
 
 #### 5. Question Answering
-- **GROQ API** (Primary):
-  - Models: Mixtral 8x7B (32K context), Llama 3 70B/8B
+- **Ollama** (Recommended - Fully Offline):
+  - Local LLM server running on `http://localhost:11434`
+  - Models: Llama 3.1 (8B/70B), Mistral 7B, Qwen 2.5, and more
+  - Easy setup: Just install Ollama and pull a model
+  - Fully offline, no API keys needed
+  - Automatic model management
+- **GROQ API** (Fast - Cloud-based):
+  - Models: Llama 3.1 70B, Llama 3 70B/8B
   - Fast inference with high-quality responses
-  - Context window: Up to 32K tokens (Mixtral)
-- **Local LLM** (Fallback):
+  - Context window: Up to 128K tokens (Llama 3.1)
+  - Requires API key
+- **Local LLM via llama-cpp-python** (Advanced - Fully Offline):
   - LLaMA.cpp backend
   - GGUF model format
-  - Fully offline operation
+  - Manual model download and setup required
 
 ## 📋 Project Structure
 
@@ -283,8 +320,9 @@ Rag/
 │   └── rag_pipeline.py
 ├── qa/                    # Optional question answering
 │   ├── __init__.py
-│   ├── answerer.py       # Local LLM QA
-│   └── groq_answerer.py # GROQ API QA
+│   ├── answerer.py       # Local LLM QA (llama-cpp-python)
+│   ├── groq_answerer.py # GROQ API QA
+│   └── ollama_answerer.py # Ollama local QA (recommended)
 ├── config.py             # Configuration management
 ├── cli.py                # Command-line interface
 ├── app.py                # Streamlit dashboard
@@ -408,6 +446,9 @@ A detailed output file with complete metadata is also generated:
 **Issue**: GROQ API not working
 - **Solution**: Verify `GROQ_API_KEY` is set in `.env` file
 
+**Issue**: Ollama not detected
+- **Solution**: Ensure Ollama is running (`ollama serve`) and a model is pulled (`ollama pull llama3.1:8b`)
+
 ## 📝 License
 
 [Add your license here]
@@ -422,4 +463,4 @@ A detailed output file with complete metadata is also generated:
 
 ---
 
-**Built with**: Python, SentenceTransformers, FAISS, Streamlit, GROQ API
+**Built with**: Python, SentenceTransformers, FAISS, Streamlit, Ollama, GROQ API

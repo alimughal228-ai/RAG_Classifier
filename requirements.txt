@@ -20,6 +20,7 @@ faiss-cpu>=1.7.4  # FAISS for efficient similarity search
 # Utilities
 python-dotenv>=1.0.0
 tqdm>=4.65.0
+requests>=2.31.0
 
 # Type hints
 typing-extensions>=4.5.0
